@@ -2,13 +2,19 @@ group 'mbhoward'
 version '1.0-SNAPSHOT'
 
 apply plugin: 'java'
+apply plugin: 'groovy'
 
 sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
 
 repositories {
     mavenCentral()
 }
 
 dependencies {
-    testCompile group: 'junit', name: 'junit', version: '4.11'
+    testCompile 'junit:junit:4.12'
+    testCompile 'org.codehaus.groovy:groovy-all:2.4.4'
+    testCompile 'org.spockframework:spock-core:1.0-groovy-2.4'
+
 }
