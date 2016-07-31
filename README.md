@@ -1,14 +1,16 @@
 # Barren Land Analysis
 
 This application performs land analysis on a farm by finding the area of all contiguous fertile plots
-given an input set of rectangles representing plots of barren land inside the farm
+given an input set of rectangles representing plots of barren land inside the farm.
 
 ## Run program
 
+```
 ./gradlew clean build
 ./run_analyzer.sh
+```
 
-# Sample run
+### Sample run
 
 ```
 mark@mark-XPS-15-9550:~/dev/land-analysis$ ./run_analyzer.sh
@@ -29,8 +31,9 @@ mark@mark-XPS-15-9550:~/dev/land-analysis$
 
 ## Run unit tests
 
+```
 ./gradlew clean build test
-
+```
 
 ## Algorithm
 
