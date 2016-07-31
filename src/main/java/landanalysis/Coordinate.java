@@ -39,4 +39,5 @@ public class Coordinate {
         return coordinateAsArray;
     }
 
+
 }

@@ -14,6 +14,10 @@ public class LandAnalysisSimulator {
     private final Map<String, Integer> unmarkedCoordinates = new HashMap<>();
     //string coordinate, integer areaId
     private final Map<String, Integer> markedCoordinates = new HashMap<>();
+    //string coordinate, integer areaId
+    private final Map<String, Integer> mergedCoordinates = new HashMap<>();
+    private final List<Integer> areaIds = new ArrayList<>();
+
 
     public LandAnalysisSimulator(Farm farm) {
         this.farm = farm;
@@ -27,15 +31,105 @@ public class LandAnalysisSimulator {
         while (!unmarkedCoordinates.isEmpty()) {
             Coordinate seed = getLowestUnmarkedCoordinate();
             markCoordinates(seed.getX(), seed.getY(), areaId);
+            areaIds.add(areaId);
             areaId++;
         }
+        mergeAreas();
         return calculateFertileAreas();
+    }
+
+    //starting with a random coordinate area, look at the neighbors of all coordinates in this area
+    //if at least one coordinate is adjacent to a coordinate in another area, merge the areas into a single area
+    //if no coordinates in the area are adjacent to a coordinate in another area, move that area into merged coordinates
+    //continue until all coordinates are moved/merged
+    private void mergeAreas() {
+        while (!markedCoordinates.isEmpty()) {
+            int currentAreaId = areaIds.get(0);
+            Set<Integer> neighborAreas = findAllNeighborAreas(currentAreaId);
+            if (neighborAreas.isEmpty()) {
+                moveAreaToMergedCoordinates(currentAreaId);
+                removeAreaId(currentAreaId);
+            } else {
+                mergeAllNeighboringAreas(neighborAreas, currentAreaId);
+                removeStaleAreaIds(neighborAreas);
+            }
+        }
+    }
+
+
+    private void removeStaleAreaIds(Set<Integer> neighborAreas) {
+        for (int areaId : neighborAreas) {
+            removeAreaId(areaId);
+        }
+    }
+
+    private void removeAreaId(int areaIdToRemove) {
+        for (int i = 0; i < areaIds.size(); i++) {
+            int areaId = areaIds.get(i);
+            if (areaId == areaIdToRemove) {
+                areaIds.remove(i);
+                return;
+            }
+        }
+    }
+
+    //merge all neighboring areas into specified areaId
+    private void mergeAllNeighboringAreas(Set<Integer> neighborAreas, int areaId) {
+        for (Map.Entry<String, Integer> entry : markedCoordinates.entrySet()) {
+            if (neighborAreas.contains(entry.getValue())) {
+               markedCoordinates.put(entry.getKey(), areaId);
+            }
+        }
+    }
+
+    private void moveAreaToMergedCoordinates(int areaId) {
+        List<String> coordinatesToRemove = new ArrayList<>();
+        for (Map.Entry<String, Integer> entry : markedCoordinates.entrySet()) {
+            if (entry.getValue() == areaId) {
+                mergedCoordinates.put(entry.getKey(), entry.getValue());
+                coordinatesToRemove.add(entry.getKey());
+            }
+        }
+        for (String coordinateToRemove : coordinatesToRemove) {
+            markedCoordinates.remove(coordinateToRemove);
+        }
+    }
+
+    private Set<Integer> findAllNeighborAreas(int areaId) {
+        Set<Integer> neighborAreas = new HashSet<>();
+        for (Map.Entry<String, Integer> entry : markedCoordinates.entrySet()) {
+            if (entry.getValue() == areaId) {
+                int[] coordinate = Coordinate.parseCoordinate(entry.getKey());
+                neighborAreas.addAll(getNeighborAreasForCoordinate(coordinate[0], coordinate[1], areaId));
+            }
+        }
+        return neighborAreas;
+    }
+
+    private Set<Integer> getNeighborAreasForCoordinate(int x, int y, int areaId) {
+        Set<Integer> neighborAreas = new HashSet<>();
+        neighborAreas.add(getNeighborAreaForCoordinate(x+1,y,areaId));
+        neighborAreas.add(getNeighborAreaForCoordinate(x-1,y,areaId));
+        neighborAreas.add(getNeighborAreaForCoordinate(x,y+1,areaId));
+        neighborAreas.add(getNeighborAreaForCoordinate(x,y-1,areaId));
+        neighborAreas.remove(-1);
+        return neighborAreas;
+    }
+
+    private int getNeighborAreaForCoordinate(int x, int y, int areaId) {
+        String coordinateKey = Coordinate.buildKey(x, y);
+        if (markedCoordinates.containsKey(coordinateKey)) {
+            int existingAreaId = markedCoordinates.get(coordinateKey);
+            return (existingAreaId != areaId) ? existingAreaId : -1;
+        } else {
+            return -1;
+        }
     }
 
     private List<Integer> calculateFertileAreas() {
         //areaId, totalArea
         Map<Integer, Integer>  aggregatedAreas = new HashMap<>();
-        for (int areaId : markedCoordinates.values()) {
+        for (int areaId : mergedCoordinates.values()) {
             if (aggregatedAreas.containsKey(areaId)) {
                 int currentArea = aggregatedAreas.get(areaId);
                 aggregatedAreas.put(areaId, currentArea + 1);
@@ -56,7 +150,7 @@ public class LandAnalysisSimulator {
         return sortedAreas;
     }
 
-    //starting from the lowermost seed and moving up and to the right, mark all contiguous coordinates and remove them from unmarked map
+    //starting from the lowermost seed and moving to the right and up, mark all contiguous coordinates and remove them from unmarked map
     //don't cross farm or barren land boundaries
     private void markCoordinates(int seedX, int seedY, int areaId) {
 //        System.out.println("processing key " + key);

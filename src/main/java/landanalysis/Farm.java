@@ -12,7 +12,6 @@ public class Farm {
     private final List<BarrenRectangle> barrenPlots = new ArrayList<>();
 
 
-
     public Farm(int width, int height) {
         this.plot = new Plot(new Coordinate(0,0), new Coordinate(width-1, height-1));
     }
