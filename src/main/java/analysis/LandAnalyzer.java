@@ -1,12 +1,13 @@
-package landanalysis;
+package analysis;
 
 
 import java.util.*;
 
 /**
- *
+ * LandAnalyzer does the actual land analysis as follows:
+ * - TODO: describe algorithm
  */
-public class LandAnalysisSimulator {
+public class LandAnalyzer {
 
 
     private final Farm farm;
@@ -19,13 +20,13 @@ public class LandAnalysisSimulator {
     private final List<Integer> areaIds = new ArrayList<>();
 
 
-    public LandAnalysisSimulator(Farm farm) {
+    public LandAnalyzer(Farm farm) {
         this.farm = farm;
     }
 
     //TODO: refactor iterators
 
-    public List<Integer> findFertileAreas() {
+    List<Integer> findFertileAreas() {
         addAllFertileCoordinates();
         int areaId = 1;
         while (!unmarkedCoordinates.isEmpty()) {

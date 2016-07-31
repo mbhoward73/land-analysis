@@ -1,8 +1,11 @@
-package landanalysis;
+package analysis;
 
 
 import java.util.StringTokenizer;
 
+/**
+ * X,Y Coordinate used for farm, barren plot, and fertile areas
+ */
 public class Coordinate {
 
     private final int x;
@@ -33,6 +36,9 @@ public class Coordinate {
 
     static int[] parseCoordinate(String coordinate) {
         StringTokenizer tokenizer = new StringTokenizer(coordinate, ",");
+        if (tokenizer.countTokens() != 2) {
+            throw new IllegalArgumentException("coordinate string must consist of two comma separated integers");
+        }
         int[] coordinateAsArray = new int[2];
         coordinateAsArray[0] = Integer.parseInt(tokenizer.nextToken());
         coordinateAsArray[1] = Integer.parseInt(tokenizer.nextToken());

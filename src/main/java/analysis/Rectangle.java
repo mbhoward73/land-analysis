@@ -1,24 +1,24 @@
-package landanalysis;
+package analysis;
 
 /**
  * Rectangular plot of land which could be entire farm or a barren rectangle
  */
-public class Plot {
+public class Rectangle {
 
     private final Coordinate lowerLeft;
     private final Coordinate upperRight;
 
-    public Plot(int lowerLeftX, int lowerLeftY, int upperRightX, int upperRightY) {
+    public Rectangle(int lowerLeftX, int lowerLeftY, int upperRightX, int upperRightY) {
         this.lowerLeft = new Coordinate(lowerLeftX, lowerLeftY);
         this.upperRight = new Coordinate(upperRightX, upperRightY);
     }
 
-    public Plot(Coordinate lowerLeft, Coordinate upperRight) {
+    public Rectangle(Coordinate lowerLeft, Coordinate upperRight) {
         this.lowerLeft = lowerLeft;
         this.upperRight = upperRight;
     }
 
-    public boolean isCoordinateInPlot(int x, int y) {
+    public boolean isCoordinateInRectangle(int x, int y) {
         return x >= lowerLeft.getX() && x <= upperRight.getX() && y >= lowerLeft.getY() && y <= upperRight.getY();
     }
 
