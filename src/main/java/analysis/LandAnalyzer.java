@@ -4,8 +4,21 @@ package analysis;
 import java.util.*;
 
 /**
- * LandAnalyzer does the actual land analysis as follows:
- * - TODO: describe algorithm
+ * LandAnalyzer performs land analysis on a farm by finding the area of all contiguous fertile plots
+ * given an input set of rectangles representing plots of barren land inside the farm
+ * The algorithm works as follows
+ * 1) add all fertile coordinates in farm to unmarked coordinates map
+ * 2) beginning with the lowest leftmost unmarked coordinate, find contiguous area of land associated with this
+ *   coordinate by moving right and up (marking coordinates with areaId as we go). do not cross barren land boundaries.
+ *   once top of farm or uncrossable barren land is reached, repeat with new lowest leftmost unmarked coordindate.
+ *   continue until all fertile coordinates are marked with areaId
+ * 3) merge contiguous areas by picking an area at random and looking at the border coordinates for all coordinates in this area
+ *   if selected area borders one or more other areas, merge other areas into selected area by remarking with selected areaId
+ *   if selected area does not border any other area, move these coordinates to merged coordinates list
+ *   continue until all coordinates have been merged and/or moved
+ * 4) calculate fertile areas by counting all coordinates in each remaining area. return sorted areas
+ *
+ *
  */
 public class LandAnalyzer {
 
@@ -24,8 +37,6 @@ public class LandAnalyzer {
         this.farm = farm;
     }
 
-    //TODO: refactor iterators
-
     List<Integer> findFertileAreas() {
         addAllFertileCoordinates();
         int areaId = 1;
@@ -38,6 +49,63 @@ public class LandAnalyzer {
         mergeAreas();
         return calculateFertileAreas();
     }
+
+    //add all fertile coordinates to unmarked list
+    private void addAllFertileCoordinates() {
+        for (int i = farm.getLeftExtent(); i <= farm.getRightExtent(); i++) {
+            for (int j = farm.getLowerExtent(); j <= farm.getUpperExtent(); j++) {
+                if (!farm.isCoordinateBarren(i, j)) {
+                    unmarkedCoordinates.put(Coordinate.buildKey(i, j), -1);
+                }
+            }
+        }
+    }
+
+    private Coordinate getLowestUnmarkedCoordinate() {
+        if (unmarkedCoordinates.isEmpty()) {
+            throw new AssertionError("couldn't find any unmarked coordinates");
+        }
+
+        int lowestX = Integer.MAX_VALUE;
+        int lowestY = Integer.MAX_VALUE;
+        for (String coordinateKey : unmarkedCoordinates.keySet()) {
+            int[] coordinate = Coordinate.parseCoordinate(coordinateKey);
+            if (coordinate[0] <= lowestX && coordinate[1] <= lowestY) {
+                lowestX = coordinate[0];
+                lowestY = coordinate[1];
+            }
+        }
+        return new Coordinate(lowestX, lowestY);
+    }
+
+    //starting from the lowermost seed and moving to the right and up, mark all contiguous coordinates and remove them from unmarked map
+    //don't cross farm or barren land boundaries
+    private void markCoordinates(int seedX, int seedY, int areaId) {
+        int currentX = seedX;
+        int currentY = seedY;
+        while (isCoordinateValid(currentX, currentY)) {
+            String key = Coordinate.buildKey(currentX, currentY);
+            unmarkedCoordinates.remove(key);
+            markedCoordinates.put(key, areaId);
+            Coordinate nextCoordinate = getNextCoordinate(currentX, currentY, seedX);
+            currentX = nextCoordinate.getX();
+            currentY = nextCoordinate.getY();
+        }
+    }
+
+    private Coordinate getNextCoordinate(int currentX, int currentY, int seedX) {
+        if (isCoordinateValid(currentX + 1, currentY)) {
+            return new Coordinate(currentX + 1, currentY);
+        } else {
+            return new Coordinate(seedX, currentY + 1);
+        }
+    }
+
+    private boolean isCoordinateValid(int x, int y) {
+        boolean isCoordinateMarked = markedCoordinates.containsKey(Coordinate.buildKey(x, y));
+        return farm.isCoordinateInFarm(x, y) && !farm.isCoordinateBarren(x, y) && !isCoordinateMarked;
+    }
+
 
     //starting with a random coordinate area, look at the neighbors of all coordinates in this area
     //if at least one coordinate is adjacent to a coordinate in another area, merge the areas into a single area
@@ -54,45 +122,6 @@ public class LandAnalyzer {
                 mergeAllNeighboringAreas(neighborAreas, currentAreaId);
                 removeStaleAreaIds(neighborAreas);
             }
-        }
-    }
-
-
-    private void removeStaleAreaIds(Set<Integer> neighborAreas) {
-        for (int areaId : neighborAreas) {
-            removeAreaId(areaId);
-        }
-    }
-
-    private void removeAreaId(int areaIdToRemove) {
-        for (int i = 0; i < areaIds.size(); i++) {
-            int areaId = areaIds.get(i);
-            if (areaId == areaIdToRemove) {
-                areaIds.remove(i);
-                return;
-            }
-        }
-    }
-
-    //merge all neighboring areas into specified areaId
-    private void mergeAllNeighboringAreas(Set<Integer> neighborAreas, int areaId) {
-        for (Map.Entry<String, Integer> entry : markedCoordinates.entrySet()) {
-            if (neighborAreas.contains(entry.getValue())) {
-               markedCoordinates.put(entry.getKey(), areaId);
-            }
-        }
-    }
-
-    private void moveAreaToMergedCoordinates(int areaId) {
-        List<String> coordinatesToRemove = new ArrayList<>();
-        for (Map.Entry<String, Integer> entry : markedCoordinates.entrySet()) {
-            if (entry.getValue() == areaId) {
-                mergedCoordinates.put(entry.getKey(), entry.getValue());
-                coordinatesToRemove.add(entry.getKey());
-            }
-        }
-        for (String coordinateToRemove : coordinatesToRemove) {
-            markedCoordinates.remove(coordinateToRemove);
         }
     }
 
@@ -127,6 +156,45 @@ public class LandAnalyzer {
         }
     }
 
+    private void removeAreaId(int areaIdToRemove) {
+        for (int i = 0; i < areaIds.size(); i++) {
+            int areaId = areaIds.get(i);
+            if (areaId == areaIdToRemove) {
+                areaIds.remove(i);
+                return;
+            }
+        }
+    }
+
+    private void removeStaleAreaIds(Set<Integer> neighborAreas) {
+        for (int areaId : neighborAreas) {
+            removeAreaId(areaId);
+        }
+    }
+
+    //merge all neighboring areas into specified areaId
+    private void mergeAllNeighboringAreas(Set<Integer> neighborAreas, int areaId) {
+        for (Map.Entry<String, Integer> entry : markedCoordinates.entrySet()) {
+            if (neighborAreas.contains(entry.getValue())) {
+               markedCoordinates.put(entry.getKey(), areaId);
+            }
+        }
+    }
+
+    private void moveAreaToMergedCoordinates(int areaId) {
+        List<String> coordinatesToRemove = new ArrayList<>();
+        for (Map.Entry<String, Integer> entry : markedCoordinates.entrySet()) {
+            if (entry.getValue() == areaId) {
+                mergedCoordinates.put(entry.getKey(), entry.getValue());
+                coordinatesToRemove.add(entry.getKey());
+            }
+        }
+        for (String coordinateToRemove : coordinatesToRemove) {
+            markedCoordinates.remove(coordinateToRemove);
+        }
+    }
+
+
     private List<Integer> calculateFertileAreas() {
         //areaId, totalArea
         Map<Integer, Integer>  aggregatedAreas = new HashMap<>();
@@ -150,68 +218,6 @@ public class LandAnalyzer {
         Collections.sort(sortedAreas);
         return sortedAreas;
     }
-
-    //starting from the lowermost seed and moving to the right and up, mark all contiguous coordinates and remove them from unmarked map
-    //don't cross farm or barren land boundaries
-    private void markCoordinates(int seedX, int seedY, int areaId) {
-//        System.out.println("processing key " + key);
-//        System.out.println("unmarkedCoordinatesSize " + unmarkedCoordinates.size());
-//        System.out.println("markedCoordinatesSize " + markedCoordinates.size());
-        int currentX = seedX;
-        int currentY = seedY;
-        while (isCoordinateValid(currentX, currentY)) {
-            String key = Coordinate.buildKey(currentX, currentY);
-            unmarkedCoordinates.remove(key);
-            markedCoordinates.put(key, areaId);
-            Coordinate nextCoordinate = getNextCoordinate(currentX, currentY, seedX);
-            currentX = nextCoordinate.getX();
-            currentY = nextCoordinate.getY();
-        }
-    }
-
-    private Coordinate getNextCoordinate(int currentX, int currentY, int seedX) {
-        if (isCoordinateValid(currentX + 1, currentY)) {
-            return new Coordinate(currentX + 1, currentY);
-        } else {
-            return new Coordinate(seedX, currentY + 1);
-        }
-    }
-
-    private boolean isCoordinateValid(int x, int y) {
-        boolean isCoordinateMarked = markedCoordinates.containsKey(Coordinate.buildKey(x, y));
-        return farm.isCoordinateInFarm(x, y) && !farm.isCoordinateBarren(x, y) && !isCoordinateMarked;
-    }
-
-
-    //add all fertile coordinates to unmarked list
-    private void addAllFertileCoordinates() {
-        for (int i = farm.getLeftExtent(); i <= farm.getRightExtent(); i++) {
-            for (int j = farm.getLowerExtent(); j <= farm.getUpperExtent(); j++) {
-                if (!farm.isCoordinateBarren(i, j)) {
-                    unmarkedCoordinates.put(Coordinate.buildKey(i, j), -1);
-                }
-            }
-        }
-    }
-
-    private Coordinate getLowestUnmarkedCoordinate() {
-        if (unmarkedCoordinates.isEmpty()) {
-            throw new AssertionError("couldn't find any unmarked coordinates");
-        }
-
-        int lowestX = Integer.MAX_VALUE;
-        int lowestY = Integer.MAX_VALUE;
-        for (String coordinateKey : unmarkedCoordinates.keySet()) {
-            int[] coordinate = Coordinate.parseCoordinate(coordinateKey);
-            if (coordinate[0] <= lowestX && coordinate[1] <= lowestY) {
-                lowestX = coordinate[0];
-                lowestY = coordinate[1];
-            }
-        }
-        return new Coordinate(lowestX, lowestY);
-    }
-
-
 
 
 }
